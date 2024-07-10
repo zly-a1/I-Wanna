@@ -1,0 +1,47 @@
+name: Android Build
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 1.8
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.8
+
+      - name: Download NDK and Setup Android SDK
+        run: |
+          sudo $ANDROID_HOME/tools/bin/sdkmanager "ndk;21.3.6528147" "platforms;android-29" "build-tools;29.0.3" "cmake;3.10.2.4988404" "extras;google;google_play_services;gms"
+          echo "ndk.dir=$ANDROID_HOME/ndk/21.3.6528147" > local.properties
+
+      - name: Build Android Project
+        run: |
+          cd cocos2d/proj.android
+          ./build_native.sh
+          ./gradlew assembleDebug
+
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: android-build
+          path: cocos2d/proj.android/build/outputs/apk/debug/
+
+      - name: Notify Slack
+        # 可选：使用Slack通知构建结果
+        # 需要在Slack中创建Webhook，并在此步骤中配置相应的URL
+        if: always()
+        uses: Ilshidur/action-slack@master
+        with:
+          status: ${{ job.status }}
+          fields: repo,message,commit,author,action,eventName,ref,workflow,job,took
+          env: SLACK_WEBHOOK_URL=<你的Slack webhook URL>
+
+# 注意：实际使用时要根据需要调整路径、版本等配置
